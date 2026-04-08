@@ -2,4 +2,5 @@ streamlit>=1.32
 playwright>=1.44
 requests>=2.31
 Pillow>=10.0
+pillow-heif>=0.16
 beautifulsoup4>=4.12

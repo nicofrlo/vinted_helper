@@ -13,7 +13,11 @@ import os
 import tempfile
 import time
 
+import pillow_heif
+from PIL import Image
 import streamlit as st
+
+pillow_heif.register_heif_opener()
 
 from generate_description import _build_prompt
 
@@ -27,7 +31,7 @@ st.caption("Upload a photo or paste from clipboard (Ctrl+V / Cmd+V).")
 # ---- Image input: file uploader + paste via JS ----
 uploaded = st.file_uploader(
     "Photo of the clothing item",
-    type=["jpg", "jpeg", "png", "webp"],
+    type=["jpg", "jpeg", "png", "webp", "heic", "heif"],
 )
 
 # Inject JS to listen for paste on the main Streamlit page and feed the
@@ -208,10 +212,17 @@ user_answers = {
 # Save uploaded file early so clipboard copy + Vinted both use it
 image_path = None
 if uploaded is not None:
-    suffix = os.path.splitext(uploaded.name)[1] or ".jpg"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(uploaded.getvalue())
-        image_path = tmp.name
+    suffix = os.path.splitext(uploaded.name)[1].lower() or ".jpg"
+    if suffix in (".heic", ".heif"):
+        img = Image.open(uploaded)
+        img = img.convert("RGB")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+            img.save(tmp, format="JPEG", quality=95)
+            image_path = tmp.name
+    else:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(uploaded.getvalue())
+            image_path = tmp.name
 
 col_go, col_lens = st.columns([1, 1])
 with col_go:
