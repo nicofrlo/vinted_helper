@@ -228,9 +228,61 @@ col_go, col_lens = st.columns([1, 1])
 with col_go:
     go = st.button("🔍 Analyze", type="primary", disabled=uploaded is None)
 with col_lens:
-    st.link_button(
-        "🔍 Open Google Lens", "https://lens.google.com", disabled=image_path is None
-    )
+    if image_path is not None:
+        import base64
+
+        with open(image_path, "rb") as _f:
+            _img_b64 = base64.b64encode(_f.read()).decode()
+        _mime = "image/jpeg" if image_path.endswith(".jpg") else "image/png"
+        # Auto-copy image to clipboard as PNG, then open Google Lens
+        st.components.v1.html(
+            f"""
+        <button id="lens-btn"
+                style="padding:8px 18px;border-radius:8px;border:1px solid #ccc;
+                       cursor:pointer;font-size:15px;background:#f0f0f0;width:100%;">
+            🔍 Copy image &amp; open Google Lens
+        </button>
+        <script>
+        document.getElementById("lens-btn").addEventListener("click", async function() {{
+            try {{
+                const b64 = "{_img_b64}";
+                const resp = await fetch("data:{_mime};base64," + b64);
+                const blob = await resp.blob();
+                let pngBlob = blob;
+                if (blob.type !== "image/png") {{
+                    const img = new window.Image();
+                    const url = URL.createObjectURL(blob);
+                    await new Promise((resolve, reject) => {{
+                        img.onload = resolve;
+                        img.onerror = reject;
+                        img.src = url;
+                    }});
+                    const canvas = document.createElement("canvas");
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    canvas.getContext("2d").drawImage(img, 0, 0);
+                    URL.revokeObjectURL(url);
+                    pngBlob = await new Promise(r => canvas.toBlob(r, "image/png"));
+                }}
+                await navigator.clipboard.write([
+                    new ClipboardItem({{ "image/png": pngBlob }})
+                ]);
+                this.textContent = "✅ Copied! Opening Lens...";
+                window.open("https://lens.google.com", "_blank");
+                setTimeout(() => this.textContent = "🔍 Copy image & open Google Lens", 2000);
+            }} catch(e) {{
+                this.textContent = "Error: " + e.message;
+                setTimeout(() => this.textContent = "🔍 Copy image & open Google Lens", 3000);
+            }}
+        }});
+        </script>
+        """,
+            height=45,
+        )
+    else:
+        st.link_button(
+            "🔍 Open Google Lens", "https://lens.google.com", disabled=True
+        )
 
 # ---------- Run analysis on button click ----------
 if go and image_path is not None:
